@@ -5,7 +5,7 @@
 #include <string>
 
 
-namespace Core
+namespace CLCore
 {
 	enum class ClientState : uint8_t
 	{
@@ -18,6 +18,7 @@ namespace Core
 	enum class ServerState : uint8_t
 	{
 		close = 0,
+		init_error,
 		socket_error,
 		bind_error,
 		listen_error,
