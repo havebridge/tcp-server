@@ -114,4 +114,9 @@ namespace Core
 			PoolSetup();
 		}
 	};
+
+	namespace Instance
+	{
+		inline ThreadPool thread_pool;
+	}
 }
