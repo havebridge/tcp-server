@@ -19,16 +19,28 @@ namespace Net
 		WSACleanup();
 	}
 		
-
-	bool Server::Start()
+	void Server::HandlerAccept()
 	{
-		std::cout << "Server:\n";
+
+	}
+
+	void Server::HandlerData()
+	{
+
+	}
+
+	Server::state Server::Start()
+	{
+		if (server_state == state::up)
+		{
+			Stop();
+		}
 
 		if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
 		{
 			std::cerr << "WSA\n";
 			std::cout << WSAGetLastError() << '\n';
-			return false;
+			return server_state = state::init_error;
 		}
 		
 		server_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
@@ -37,7 +49,7 @@ namespace Net
 		{
 			std::cerr << "socket\n";
 			std::cout << WSAGetLastError() << '\n';
-			return false;
+			return server_state = state::socket_error;
 		}
 
 		char yes = '1';
@@ -46,7 +58,7 @@ namespace Net
 		{
 			std::cerr << "setsockopt\n";
 			std::cout << WSAGetLastError() << '\n';
-			return false;
+			return server_state = state::socket_error;
 		}
 
 		server_info.sin_family = AF_INET;
@@ -58,14 +70,14 @@ namespace Net
 		{
 			std::cerr << "bind\n";
 			std::cout << WSAGetLastError() << '\n';
-			return false;
+			return server_state = state::bind_error;
 		}
 
 		if (listen(server_socket, SOMAXCONN) == SOCKET_ERROR)
 		{
 			std::cerr << "listen\n";
 			std::cout << WSAGetLastError() << '\n';
-			return false;
+			return server_state = state::listen_error;
 		}
 
 		struct sockaddr_in client_info;
@@ -76,15 +88,15 @@ namespace Net
 		{
 			std::cerr << "accept\n";
 			std::cout << WSAGetLastError() << '\n';
-			return false;
+			return server_state = state::accept_error;
 		}
 
-		std::cout << "server started\n";
-		std::cout << "Connected with client\n";
-		std::cout << "IP: " << client_info.sin_addr.s_addr << '\n';
-		std::cout << "PORT: " << client_info.sin_port << '\n';
+		server_state = state::up;
 
-		std::vector<char> buffer;
+		Core::Instance::thread_pool.QueueJob(std::bind(&Server::HandlerAccept, this));
+		Core::Instance::thread_pool.QueueJob(std::bind(&Server::HandlerData, this));
+
+		/*std::vector<char> buffer;
 		std::string message;
 		int size = 0;
 
@@ -110,7 +122,15 @@ namespace Net
 
 		std::cout << "The message size " << size << '\n';
 		std::cout << "The message " << message << '\n';
-		return true;
+		return true;*/
+
+		return server_state;
 	}
 
+	void Server::Stop()
+	{
+		Core::Instance::thread_pool.DropJobs();
+		server_state = state::close;
+		closesocket(server_socket);
+	}
 }
