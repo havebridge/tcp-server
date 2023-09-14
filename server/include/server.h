@@ -31,21 +31,26 @@ namespace Net
 	public:
 		struct Client : public CLCore::ClientCore
 		{
-			typedef CLCore::ClientState client_state;
+			typedef CLCore::ClientState state;
 
 			friend class Server;
 
 			SOCKET client_socket;
-			struct sockaddr_in;
+			struct sockaddr_in client_info;
 			std::mutex client_mutex;
 
-			Client(SOCKET, struct sockaddr_in);
+			state client_state = state::connected;
+
+			Client(SOCKET client_socket, struct sockaddr_in client_info)
+				:
+				client_socket(client_socket),
+				client_info(client_info) {}
 
 			virtual bool SendData(std::string data) const override;
 			virtual std::vector<uint8_t> LoadData() const override;
 			virtual std::string GetHost() const override;
 			virtual std::string GetPort() const override;
-			virtual client_state Disconnect() override;
+			virtual state Disconnect() override;
 			virtual ~Client() override;
 		};
 
