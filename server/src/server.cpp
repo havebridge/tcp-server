@@ -4,7 +4,7 @@
 
 namespace Net
 {
-	Server::Server(const char* ip, int port)
+	Server::Server(const char* ip, int port) noexcept
 		:
 		wsa{ 0 },
 		server_socket(INVALID_SOCKET),
@@ -18,19 +18,35 @@ namespace Net
 		closesocket(server_socket);
 		WSACleanup();
 	}
-		
-	void Server::HandlerAccept()
-	{
 
+	void Server::HandlerAccept(void)
+	{
+		struct sockaddr_in client_info;
+		int client_info_lenght = sizeof(client_info);
+		SOCKET client_socket = accept(server_socket, (sockaddr*)&client_info, &client_info_lenght);
+
+		if (client_socket == INVALID_SOCKET)
+		{
+			std::cerr << "accept\n";
+			std::cout << WSAGetLastError() << '\n';
+		}
+
+		std::unique_ptr<Client> client(new Client(client_socket, client_info));
+		client_mutex.lock();
+		clients.emplace_back(std::move(client));
+		client_mutex.unlock();
+
+		std::cout << "Client ip: " << std::to_string(client_info.sin_addr.s_addr) << " port:" << std::to_string(client_info.sin_port) << " connected\n";
 	}
 
 	void Server::HandlerData()
 	{
-
 	}
 
 	Server::state Server::Start()
 	{
+		std::cout << "Server:\n";
+
 		if (server_state == state::up)
 		{
 			Stop();
@@ -38,7 +54,7 @@ namespace Net
 
 		if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
 		{
-			std::cerr << "WSA\n";
+			std::cerr << "Error: WSA\n";
 			std::cout << WSAGetLastError() << '\n';
 			return server_state = state::init_error;
 		}
@@ -47,7 +63,7 @@ namespace Net
 
 		if (server_socket == SOCKET_ERROR)
 		{
-			std::cerr << "socket\n";
+			std::cerr << "Error: socket\n";
 			std::cout << WSAGetLastError() << '\n';
 			return server_state = state::socket_error;
 		}
@@ -56,7 +72,7 @@ namespace Net
 
 		if ((setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(char)) == -1))
 		{
-			std::cerr << "setsockopt\n";
+			std::cerr << "Error: setsockopt\n";
 			std::cout << WSAGetLastError() << '\n';
 			return server_state = state::socket_error;
 		}
@@ -68,33 +84,22 @@ namespace Net
 
 		if (bind(server_socket, (const sockaddr*)&server_info, server_info_lenght) == -1)
 		{
-			std::cerr << "bind\n";
+			std::cerr << "Error: bind\n";
 			std::cout << WSAGetLastError() << '\n';
 			return server_state = state::bind_error;
 		}
 
 		if (listen(server_socket, SOMAXCONN) == SOCKET_ERROR)
 		{
-			std::cerr << "listen\n";
+			std::cerr << "Error: listen\n";
 			std::cout << WSAGetLastError() << '\n';
 			return server_state = state::listen_error;
-		}
-
-		struct sockaddr_in client_info;
-		int client_info_lenght = sizeof(client_info);
-		SOCKET client_socket = accept(server_socket, (sockaddr*)&client_info, &client_info_lenght);
-
-		if (client_socket == SOCKET_ERROR) 
-		{
-			std::cerr << "accept\n";
-			std::cout << WSAGetLastError() << '\n';
-			return server_state = state::accept_error;
 		}
 
 		server_state = state::up;
 
 		Core::Instance::thread_pool.QueueJob(std::bind(&Server::HandlerAccept, this));
-		Core::Instance::thread_pool.QueueJob(std::bind(&Server::HandlerData, this));
+		//Core::Instance::thread_pool.QueueJob(std::bind(&Server::HandlerData, this));
 
 		/*std::vector<char> buffer;
 		std::string message;
@@ -127,10 +132,63 @@ namespace Net
 		return server_state;
 	}
 
+	void Server::JoinLoop()
+	{
+		Core::Instance::thread_pool.Join();
+	}
+
 	void Server::Stop()
 	{
 		Core::Instance::thread_pool.DropJobs();
 		server_state = state::close;
 		closesocket(server_socket);
+	}
+
+	bool Server::Client::SendData(std::string data) const
+	{
+		return false;
+	}
+	std::vector<uint8_t> Server::Client::LoadData() const
+	{
+		return std::vector<uint8_t>();
+	}
+	std::string Server::Client::GetHost() const
+	{
+		return std::string();
+	}
+	std::string Server::Client::GetPort() const
+	{
+		return std::string();
+	}
+
+	Server::Client::state Server::Client::Disconnect()
+	{
+		if (client_state == state::disconnected)
+		{
+			return client_state;
+		}
+
+		client_state = state::disconnected;
+
+		if (shutdown(client_socket, SD_BOTH) == SOCKET_ERROR)
+		{
+			std::cerr << "Error: shutdown\n";
+			std::cout << WSAGetLastError() << '\n';
+			closesocket(client_socket);
+		}
+
+		return client_state;
+	}
+
+
+	Server::Client::~Client()
+	{
+		if (client_socket == INVALID_SOCKET)
+		{
+			return;
+		}
+
+		shutdown(client_socket, SD_BOTH);
+		closesocket(client_socket);
 	}
 }

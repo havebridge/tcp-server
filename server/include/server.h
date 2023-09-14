@@ -59,7 +59,7 @@ namespace Net
 		void HandlerData();
 
 	public:
-		Server(const char* ip, int port);
+		Server(const char* ip, int port) noexcept;
 		~Server();
 
 	public:
@@ -67,5 +67,7 @@ namespace Net
 		void Stop();
 
 		void JoinLoop();
+
+		void SendData(std::string);
 	};
 }
