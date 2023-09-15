@@ -41,6 +41,7 @@ namespace Net
 
 	void Server::HandlerData()
 	{
+
 	}
 
 	Server::state Server::Start()
@@ -137,6 +138,14 @@ namespace Net
 		Core::Instance::thread_pool.Join();
 	}
 
+	void Server::SendData(std::string data)
+	{
+		for (auto& client : clients)
+		{
+			client->SendData(data);
+		}
+	}
+
 	void Server::Stop()
 	{
 		Core::Instance::thread_pool.DropJobs();
@@ -146,11 +155,53 @@ namespace Net
 
 	bool Server::Client::SendData(std::string data) const
 	{
-		return false;
+		if (client_state == state::disconnected)
+		{
+			std::cerr << "Error SendData: The client is not connected\n";
+			return false;
+		}
+
+		int data_lenght = data.size();
+
+		if (send(client_socket, (char*)&data_lenght, sizeof(int), 0) < 0)
+		{
+			std::cerr << "Error SendData: the send size\n";
+			return false;
+		}
+
+		if (send(client_socket, data.c_str(), data_lenght, 0) < 0)
+		{
+			std::cerr << "Error SendData: the send data\n";
+			return false;
+		}
+
+		std::cout << "SendData: The size " << data_lenght << " and the data " << data.data() << " is sended successfully\n";
+
+		return true;
 	}
+
 	std::vector<uint8_t> Server::Client::LoadData() const
 	{
-		return std::vector<uint8_t>();
+		std::vector<uint8_t> recieved_buffer;
+		int recieved_buffer_lenght = 0;
+
+		if (recv(client_socket, (char*)&recieved_buffer_lenght, sizeof(int), 0) < 0)
+		{
+			std::cerr << "Error LoadData: the recv size\n";
+			return std::vector<uint8_t>();
+		}
+
+		recieved_buffer.resize(recieved_buffer_lenght, 0x00);
+
+		if (recv(client_socket, (char*)&recieved_buffer, recieved_buffer_lenght, 0) < 0)
+		{
+			std::cerr << "Error LoadData: the recv buffer\n";
+			return std::vector<uint8_t>();
+		}
+
+		std::cout << "LoadData: The size " << recieved_buffer_lenght << " and the data " << recieved_buffer.data() << " is recieved successfully\n";
+
+		return recieved_buffer;
 	}
 	std::string Server::Client::GetHost() const
 	{
@@ -187,6 +238,8 @@ namespace Net
 		{
 			return;
 		}
+
+		client_socket = INVALID_SOCKET;
 
 		shutdown(client_socket, SD_BOTH);
 		closesocket(client_socket);
