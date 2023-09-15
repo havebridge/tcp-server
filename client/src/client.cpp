@@ -4,7 +4,7 @@
 
 namespace Net
 {
-	Client::Client()
+	Client::Client() noexcept
 		:
 		wsa{ 0 },
 		client_socket(INVALID_SOCKET),
@@ -13,6 +13,7 @@ namespace Net
 
 	Client::~Client()
 	{
+		shutdown(client_socket, SD_BOTH);
 		closesocket(client_socket);
 		WSACleanup();
 	}
@@ -24,35 +25,32 @@ namespace Net
 
 		if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
 		{
-			std::cerr << "WSA\n";
+			std::cerr << "Error: WSA\n";
 			std::cout << WSAGetLastError() << '\n';
 			return false;
 		}
 
-		
-		client_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-
-		if (client_socket == SOCKET_ERROR)
+		if ((client_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) == INVALID_SOCKET)
 		{
-			std::cerr << "socket\n";
+			std::cerr << "Error: socket\n";
 			std::cout << WSAGetLastError() << '\n';
 			return false;
 		}
-
 
 		client_info.sin_family = AF_INET;
 		client_info.sin_port = htons(port);
 		client_info.sin_addr.s_addr = inet_addr(ip);
+
 		ZeroMemory(client_info.sin_zero, 8);
 
 		if (connect(client_socket, (const sockaddr*)&client_info, client_info_lenght) == SOCKET_ERROR)
 		{
-			std::cerr << "connect\n";
+			std::cerr << "Error: connect\n";
 			std::cout << WSAGetLastError() << '\n';
 			return false;
 		}
 
-		std::string message = "Hello\n";
+		/*std::string message = "Hello\n";
 		int size = message.size();
 
 		if (send(client_socket, (char*)&size, sizeof(int), 0) < 0)
@@ -70,7 +68,8 @@ namespace Net
 		std::cout << "The message size " << size << '\n';
 		std::cout << "The message " << message << '\n';
 
+		*/
+
 		return true;
 	}
-
 }

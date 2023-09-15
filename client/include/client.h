@@ -18,7 +18,7 @@ namespace Net
 		int port;
 
 	public:
-		Client();
+		Client() noexcept;
 		~Client();
 
 	public:
