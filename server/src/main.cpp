@@ -7,10 +7,12 @@ int main(int argc, char** argv)
 
 	Net::Server server("127.0.0.1", 8888);
 
-	if (server.Start())
+	if (server.Start() == CLCore::ServerState::up)
 	{
-		std::cout << "END\n";
+		server.JoinLoop();
 	}
+
+	server.Stop();
 
 	return 0;
 }
