@@ -51,7 +51,7 @@ namespace Core
 		{
 			threads.clear();
 
-			for (int i = 0; i < std::thread::hardware_concurrency(); ++i)
+			for (unsigned i = 0; i < std::thread::hardware_concurrency(); ++i)
 			{
 				threads.emplace_back(std::thread(&ThreadPool::ThreadLoop, this));
 			}
@@ -103,6 +103,21 @@ namespace Core
 
 			return task_ptr->get_future();
 		}
+
+		template<typename F>
+		void QueueJob(F job)
+		{
+			if (is_terminated)
+				return;
+			{
+				std::unique_lock<std::mutex> jobs_lock(job_mutex);
+				jobs.push(std::function<void()>(job));
+			}
+			cv.notify_one();
+		}
+
+		template<typename F, typename... Args>
+		void QueueJob(const F& job, const Args&... args) { QueueJob([job, args...]{ job(args...); }); }
 
 		void DropJobs()
 		{
