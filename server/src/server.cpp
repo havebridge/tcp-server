@@ -33,15 +33,38 @@ namespace Net
 
 		std::unique_ptr<Client> client(new Client(client_socket, client_info));
 		client_mutex.lock();
+		std::cout << "Client ip: " << client->GetHost() << " port:" << client->GetPort() << " connected\n";
 		clients.emplace_back(std::move(client));
 		client_mutex.unlock();
-
-		std::cout << "Client ip: " << std::to_string(client_info.sin_addr.s_addr) << " port:" << std::to_string(client_info.sin_port) << " connected\n";
 	}
 
 	void Server::HandlerData()
 	{
+		{
+			std::lock_guard<std::mutex> client_lock(client_mutex);
 
+			for (auto it = clients.begin(), end = clients.end(); it != end; ++it)
+			{
+				auto& client = *it;
+
+				if (client)
+				{
+					std::vector<uint8_t> data = client->LoadData();
+
+					if (!data.empty())
+					{
+						client->client_mutex.lock();
+						Core::Instance::thread_pool.QueueJob([this, data = std::move(data), &client]{ Data(std::move(client), std::move(data)); });
+						client->client_mutex.unlock();
+					}
+				}
+			}
+		}
+	}
+
+	void Server::Data(std::unique_ptr<Client> client, std::vector<uint8_t> data)
+	{
+		std::cout << "Data\n";
 	}
 
 	Server::state Server::Start()
@@ -100,7 +123,7 @@ namespace Net
 		server_state = state::up;
 
 		Core::Instance::thread_pool.QueueJob(std::bind(&Server::HandlerAccept, this));
-		//Core::Instance::thread_pool.QueueJob(std::bind(&Server::HandlerData, this));
+		Core::Instance::thread_pool.QueueJob(std::bind(&Server::HandlerData, this));
 
 		/*std::vector<char> buffer;
 		std::string message;
@@ -182,6 +205,12 @@ namespace Net
 
 	std::vector<uint8_t> Server::Client::LoadData() const
 	{
+		if (client_state == state::disconnected)
+		{
+			std::cerr << "Error SendData: The client is not connected\n";
+			return std::vector<uint8_t>();
+		}
+
 		std::vector<uint8_t> recieved_buffer;
 		int recieved_buffer_lenght = 0;
 
@@ -203,13 +232,21 @@ namespace Net
 
 		return recieved_buffer;
 	}
+
+
 	std::string Server::Client::GetHost() const
 	{
-		return std::string();
+		uint32_t ip = client_info.sin_addr.s_addr;
+
+		return std::string() + std::to_string(int(reinterpret_cast<char*>(&ip)[0])) + '.' +
+			std::to_string(int(reinterpret_cast<char*>(&ip)[1])) + '.' +
+			std::to_string(int(reinterpret_cast<char*>(&ip)[2])) + '.' +
+			std::to_string(int(reinterpret_cast<char*>(&ip)[3]));
 	}
+
 	std::string Server::Client::GetPort() const
 	{
-		return std::string();
+		return std::to_string(client_info.sin_port);
 	}
 
 	Server::Client::state Server::Client::Disconnect()

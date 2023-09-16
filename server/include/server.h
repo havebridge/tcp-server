@@ -57,6 +57,7 @@ namespace Net
 	private:
 		void HandlerAccept();
 		void HandlerData();
+		void Data(std::unique_ptr<Client> client, std::vector<uint8_t> data);
 
 	public:
 		Server(const char* ip, int port) noexcept;
