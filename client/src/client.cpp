@@ -19,7 +19,7 @@ namespace Net
 	}
 
 
-	bool Client::Connect(const char* ip, int port)
+	Client::state Client::Connect(const char* ip, int port)
 	{
 		std::cout << "Client:\n";
 
@@ -27,14 +27,14 @@ namespace Net
 		{
 			std::cerr << "Error: WSA\n";
 			std::cout << WSAGetLastError() << '\n';
-			return false;
+			return client_state = state::init_error;
 		}
 
 		if ((client_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) == INVALID_SOCKET)
 		{
 			std::cerr << "Error: socket\n";
 			std::cout << WSAGetLastError() << '\n';
-			return false;
+			return client_state = state::socket_error;
 		}
 
 		client_info.sin_family = AF_INET;
@@ -47,7 +47,7 @@ namespace Net
 		{
 			std::cerr << "Error: connect\n";
 			std::cout << WSAGetLastError() << '\n';
-			return false;
+			return client_state = state::connect_error;
 		}
 
 		/*std::string message = "Hello\n";
@@ -70,6 +70,31 @@ namespace Net
 
 		*/
 
-		return true;
+		return client_state = state::connected;
+	}
+
+	bool Client::SendData(std::string data) const
+	{
+		return false;
+	}
+
+	std::vector<uint8_t> Client::LoadData() const
+	{
+		return std::vector<uint8_t>();
+	}
+
+	std::string Client::GetHost() const
+	{
+		return std::string();
+	}
+
+	std::string Client::GetPort() const
+	{
+		return std::string();
+	}
+
+	Client::state Client::Disconnect()
+	{
+		return state::disconnected;
 	}
 }
