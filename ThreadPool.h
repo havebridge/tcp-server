@@ -63,6 +63,9 @@ namespace Core
 			PoolSetup();
 		}
 
+		ThreadPool(const ThreadPool&) = delete;
+		ThreadPool& operator=(const ThreadPool&) = delete;
+
 		~ThreadPool()
 		{
 			for (auto& thread : threads)

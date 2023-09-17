@@ -10,6 +10,7 @@ namespace CLCore
 	enum class ClientState : uint8_t
 	{
 		disconnected = 0,
+		init_error,
 		socket_error,
 		connect_error,
 		connected
