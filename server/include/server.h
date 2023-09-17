@@ -22,7 +22,7 @@ namespace Net
 		int port;
 
 		typedef CLCore::ServerState state;
-		state server_state;
+		state server_state = state::close;
 
 		struct Client;
 		std::list<std::unique_ptr<Client>> clients;

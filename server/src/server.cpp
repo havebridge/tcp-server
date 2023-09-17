@@ -36,6 +36,11 @@ namespace Net
 		std::cout << "Client ip: " << client->GetHost() << " port:" << client->GetPort() << " connected\n";
 		clients.emplace_back(std::move(client));
 		client_mutex.unlock();
+
+		if (server_state == state::up)
+		{
+			Core::Instance::thread_pool.QueueJob(std::bind(&Server::HandlerAccept, this));
+		}
 	}
 
 	void Server::HandlerData()
@@ -60,6 +65,13 @@ namespace Net
 				}
 			}
 		}
+
+#if 0
+		if (server_state == state::up)
+		{
+			Core::Instance::thread_pool.QueueJob(std::bind(&Server::HandlerData, this));
+		}
+#endif
 	}
 
 	void Server::Data(std::unique_ptr<Client> client, std::vector<uint8_t> data)
